@@ -1,0 +1,39 @@
+extends layout.pug
+
+block content
+  h1 Overdue Books
+  p
+    a.button(href='new_book') Create New Book
+  p
+    | Filters 
+    a(href='all_books') All
+    |  
+    a(href='overdue_books') Overdue
+    |  
+    a(href='checked_books') Checked Out
+  table
+    thead
+      tr
+        th Title
+        th Author
+        th Genre
+        th Year Released
+    tbody
+      tr
+        td
+          a(href='book_detail') Harry Potter and the Goblet of Fire
+        td J.K. Rowling
+        td Fantasy
+        td 2000
+      tr
+        td
+          a(href='book_detail') A Brief History of Time
+        td Stephen Hawking
+        td Non Fiction
+        td 1988
+      tr
+        td
+          a(href='book_detail') The Universe in a Nutshell
+        td Stephen Hawking
+        td Non Fiction
+        td 2001
