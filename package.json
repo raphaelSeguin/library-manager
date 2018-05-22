@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git+https://github.com/raphaelSeguin/library-manager.git"
   },
-  "author": "",
+  "author": "Raphaël Seguin",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/raphaelSeguin/library-manager/issues"
