@@ -11,19 +11,5 @@ block content
     a(href='overdue_books') Overdue
     |  
     a(href='checked_books') Checked Out
-  table
-    thead
-      tr
-        th Title
-        th Author
-        th Genre
-        th Year Released
-    tbody
-    each book in books
-      tr
-        td
-          a(href='book_detail?id=' + book.id) #{book.title}
-        td #{book.author}
-        td #{book.genre}
-        td #{book.first_published}
+  include includes/books.pug
     

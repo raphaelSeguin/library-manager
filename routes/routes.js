@@ -3,6 +3,7 @@
 // modules
 const express    = require('express');
 const bodyParser = require('body-parser');
+const moment     = require('moment');
 
 // models
 const Book       = require('../models').Book;
@@ -14,8 +15,37 @@ const router     = express.Router();
 
 // utilities 
 const getDataValues = data => data.map( o => o.dataValues);
+const getDate = () => moment().format('YYYY-MM-DD');
+const queryBookTitle = book_id => Book.findById(book_id).then( book => book.title);
+const queryPatronFullName = patron_id => Patron.findById(patron_id).then( patron => `${patron.first_name} ${patron.last_name}`);
 const monitor = label => val => {console.log(label + ': ', val); return val}
 
+const getAllLoans = whereClause => {
+    const allLoans = {};
+    return Loan.findAll()
+        .then( getDataValues )
+        .then( loans => { 
+            allLoans.loans = loans; 
+            return Promise.all(loans.map( 
+                loan => 
+                    Promise.all([
+                        queryBookTitle(loan.book_id),
+                        queryPatronFullName(loan.patron_id)
+                    ])
+                )
+            )
+        })
+        .then( data =>
+            data.forEach( (arr, i) => {
+                allLoans.loans[i].book_title = arr[0];
+                allLoans.loans[i].patron_fullname = arr[1];
+            })
+        )
+        .then( () => allLoans )
+}
+    
+
+// body-parser
 router.use( bodyParser.urlencoded({ extended: true }) );
 
 // ---------------------------------------------------------------------------- HOME
@@ -42,51 +72,8 @@ router.get('/all_patrons', (req, res) => {
 });
 
 router.get('/all_loans', (req, res) => {
-
-    const queryBookTitle = book_id => {
-        return Book.findById(book_id)
-            .then( book => book.title)
-    }
-
-    const queryPatronFullName = patron_id => {
-        return Patron.findById(patron_id)
-            .then( patron => `${patron.first_name} ${patron.last_name}`)
-    }
-
-    const loansInfos = Loan.findAll()
-        // then map this array to an array of promises
-        .then( getDataValues )
-        .then( loans => 
-            Promise.all(
-                loans.map( loan =>
-                    Promise.all([
-                        queryBookTitle(loan.book_id),
-                        Promise.resolve(loan.book_id),
-                        queryPatronFullName(loan.patron_id),
-                        Promise.resolve(loan.patron_id),
-                        Promise.resolve(loan.loaned_on),
-                        Promise.resolve(loan.return_by),
-                        Promise.resolve(loan.returned_on),
-                        Promise.resolve(loan.id)
-                    ])
-                )
-            )
-        )
-        .then( data => 
-            data.map( array => {
-                return {
-                    book_title: array[0],
-                    book_id: array[1],
-                    patron_name: array[2],
-                    patron_id: array[3],
-                    loaned_on: array[4],
-                    return_by: array[5],
-                    returned_on: array[6],
-                    loan_id: array[7]
-                }
-            })
-        )
-        .then( loans => res.render('all_loans.pug', { loans })  )
+        getAllLoans()
+        .then( allLoans => res.render('all_loans.pug', allLoans ) )
 });
 
 // ---------------------------------------------------------------------------- ALL END
@@ -94,6 +81,8 @@ router.get('/all_loans', (req, res) => {
 // ---------------------------------------------------------------------------- DETAIL
 
 router.get('/book_detail', (req, res) => {
+
+    const bookDetails = {};
     Promise.all([
         Book.findById( req.query.id )
             .then( book => book.dataValues ),
@@ -102,51 +91,87 @@ router.get('/book_detail', (req, res) => {
         })
             .then( getDataValues )
     ])
-    .then( monitor('bookdetail') )
-    .then( infos => 
-        res.render('book_detail.pug', {
-            book: infos[0],
-            loans: infos[1]
+    .then( infos => {
+        bookDetails.book = infos[0];
+        bookDetails.loans = infos[1];
+        return Promise.all( infos[1].map( loan => queryPatronFullName( loan.patron_id ) ) )
+    })
+    .then( patrons => 
+        bookDetails.loans.forEach( (loan, i) => {
+            bookDetails.loans[i].patron_fullname = patrons[i];
+            bookDetails.loans[i].book_title = bookDetails.book.title;
         })
     )
+    .then( () => res.render('book_detail.pug', bookDetails ) );
 });
 
 router.get('/patron_detail', (req, res) => {
+
+    const patronDetails = {};
     Promise.all([
-        Patron.findById(req.query.id)
+        Patron.findById( req.query.id )
             .then( patron => patron.dataValues ),
         Loan.findAll({
-            where: { patron_id: req.query.id } 
+             where: { patron_id: req.query.id } 
         })
-           .then( getDataValues )
+            .then( getDataValues )
     ])
-        .then( infos => 
-            res.render('patron_detail.pug', {
-                patron: infos[0],
-                loans: infos[1]
-            }))
-});
-
-router.get('/loan_detail', (req, res) => {
-    res.render('loan_detail.pug', {})
+    .then( infos => {
+        patronDetails.patron = infos[0];
+        patronDetails.loans = infos[1];
+        return Promise.all( infos[1].map( loan => queryBookTitle( loan.book_id ) ) )
+    })
+    .then( books => 
+        patronDetails.loans.forEach( (loan, i) => {
+            patronDetails.loans[i].book_title = books[i];
+            patronDetails.loans[i].patron_fullname = patronDetails.patron.first_name + ' ' + patronDetails.patron.last_name;
+        })
+    )
+    .then( () => res.render('patron_detail.pug', patronDetails ) );
 });
 
 // ---------------------------------------------------------------------------- FILTER
 
 router.get('/overdue_books', (req, res) => {
-    res.render('overdue_books.pug');
+    Book.findAll({
+        where: {
+            // return_by: {
+
+            // }
+        }
+    })
+        .then( getDataValues )
+        .then( books => res.render('overdue_books.pug', { books }) )
 });
 
 router.get('/checked_books', (req, res) => {
-    res.render('checked_books.pug');
+    Book.findAll({
+        where: {
+            // returned_on: {
+                
+            // }
+        }
+    })
+        .then( getDataValues )
+        .then( books => res.render('checked_books.pug', { books }) )
 });
 
 router.get('/overdue_loans', (req, res) => {
-    res.render('overdue_loans.pug');
+    getAllLoans({
+        where: {
+
+        }
+    })
+    .then( allLoans => res.render('overdue_loans.pug', allLoans ) )
 });
 
 router.get('/checked_loans', (req, res) => {
-    res.render('checked_loans.pug');
+    getAllLoans({
+        where: {
+
+        }
+    })
+    .then( allLoans => res.render('checked_loans.pug', allLoans ) )
 });
 
 // ---------------------------------------------------------------------------- GET NEW
@@ -198,9 +223,23 @@ router.post('/new_patron', (req, res) => {
 router.get('/return_book', (req, res) => {
     Loan.findById(res.query.id)
         update({
-            returned_on // add moment something . . .. 
+            returned_on: getDate()
         })
+        .then( res => res.redirect('/all_books.pug') );
 })
+
+// ---------------------------------------------------------------------------- UPDATE
+
+router.post('/book_detail', (req, res) => {
+    console.log('UPDATE BOOK');
+    res.redirect('all_books');
+})
+
+router.post('/patron_detail', (req, res) => {
+    console.log('UPDATE PATRON');
+    res.redirect('all_patrons');
+})
+
 
 // ---------------------------------------------------------------------------- ERRORS
 router.use( (err, req, res, next) => {
