@@ -15,21 +15,38 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true
         },
         book_id: {
-            type: DataTypes.INTEGER
+            type: DataTypes.INTEGER,
+            validate: {
+                isInt: true
+            }
         },
         patron_id: {
-            type: DataTypes.INTEGER
+            type: DataTypes.INTEGER,
+            validate: {
+                isInt: true
+            }
         },
         loaned_on: {
-            type: DataTypes.DATEONLY
+            type: DataTypes.DATEONLY,
+            validate: {
+                isDate: true
+            }
         },
         return_by: {
-            type: DataTypes.DATEONLY
+            type: DataTypes.DATEONLY,
+            validate: {
+                isDate: true
+            }
         },
         returned_on: {
-            type: DataTypes.DATEONLY
+            type: DataTypes.DATEONLY,
+            validate: {
+                isDate: true
+            }
         }
-    }, {});
+    }, {
+        timestamps: false,
+    });
     Loan.associates = function(models) {
       // associations can be defined here
     };

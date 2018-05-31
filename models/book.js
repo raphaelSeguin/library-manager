@@ -7,19 +7,28 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true
     },
     title: {
-        type: DataTypes.STRING
+        type: DataTypes.STRING,
+        validate: {
+          notEmpty: true
+        }
     },
     author: {
-        type: DataTypes.STRING
+        type: DataTypes.STRING,
+        validate: {
+          notEmpty: true
+        }
     },
     genre: {
-        type: DataTypes.STRING
+        type: DataTypes.STRING,
+        validate: {
+          notEmpty: true
+        }
     },
     first_published: {
         type: DataTypes.INTEGER
     }
   }, {
-    //freezeTableName: true
+    timestamps: false
   });
   Book.associate = function(models) {
     // associations can be defined here

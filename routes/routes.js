@@ -4,6 +4,7 @@
 const express    = require('express');
 const bodyParser = require('body-parser');
 const moment     = require('moment');
+const Op         = require('Sequelize').Op;
 
 // models
 const Book       = require('../models').Book;
@@ -15,14 +16,16 @@ const router     = express.Router();
 
 // utilities 
 const getDataValues = data => data.map( o => o.dataValues);
-const getDate = () => moment().format('YYYY-MM-DD');
-const queryBookTitle = book_id => Book.findById(book_id).then( book => book.title);
-const queryPatronFullName = patron_id => Patron.findById(patron_id).then( patron => `${patron.first_name} ${patron.last_name}`);
+
+// dev utils
 const monitor = label => val => {console.log(label + ': ', val); return val}
 
-const getAllLoans = whereClause => {
+// querys
+const queryBookTitle = book_id => Book.findById(book_id).then( book => book.title);
+const queryPatronFullName = patron_id => Patron.findById(patron_id).then( patron => `${patron.first_name} ${patron.last_name}`);
+const queryAllLoans = whereClause => {
     const allLoans = {};
-    return Loan.findAll()
+    return Loan.findAll(whereClause)
         .then( getDataValues )
         .then( loans => { 
             allLoans.loans = loans; 
@@ -43,7 +46,22 @@ const getAllLoans = whereClause => {
         )
         .then( () => allLoans )
 }
-    
+
+// errorMessages
+const cantBeEmpty = name => val => val === '' ? name + ' is required' : 'invalid input for ' + name;
+const errorMessages = {
+    title: cantBeEmpty('title'),
+    author: cantBeEmpty('author'),
+    genre: cantBeEmpty('genre'),
+    first_name: cantBeEmpty('first name'),
+    last_name: cantBeEmpty('last name'),
+    address: cantBeEmpty('address'),
+    email: cantBeEmpty('email'),
+    library_id: cantBeEmpty('library id'),
+    zip_code: cantBeEmpty('zip code'),
+    loaned_on: cantBeEmpty('loan date'),
+    return_by: cantBeEmpty('return date')
+}
 
 // body-parser
 router.use( bodyParser.urlencoded({ extended: true }) );
@@ -72,7 +90,8 @@ router.get('/all_patrons', (req, res) => {
 });
 
 router.get('/all_loans', (req, res) => {
-        getAllLoans()
+        queryAllLoans()
+        .then( monitor('allLoans') )
         .then( allLoans => res.render('all_loans.pug', allLoans ) )
 });
 
@@ -82,7 +101,7 @@ router.get('/all_loans', (req, res) => {
 
 router.get('/book_detail', (req, res) => {
 
-    const bookDetails = {};
+    let bookDetails = {};
     Promise.all([
         Book.findById( req.query.id )
             .then( book => book.dataValues ),
@@ -92,14 +111,14 @@ router.get('/book_detail', (req, res) => {
             .then( getDataValues )
     ])
     .then( infos => {
-        bookDetails.book = infos[0];
+        bookDetails = infos[0];
         bookDetails.loans = infos[1];
         return Promise.all( infos[1].map( loan => queryPatronFullName( loan.patron_id ) ) )
     })
     .then( patrons => 
         bookDetails.loans.forEach( (loan, i) => {
             bookDetails.loans[i].patron_fullname = patrons[i];
-            bookDetails.loans[i].book_title = bookDetails.book.title;
+            bookDetails.loans[i].book_title = bookDetails.title;
         })
     )
     .then( () => res.render('book_detail.pug', bookDetails ) );
@@ -107,7 +126,7 @@ router.get('/book_detail', (req, res) => {
 
 router.get('/patron_detail', (req, res) => {
 
-    const patronDetails = {};
+    let patronDetails = {};
     Promise.all([
         Patron.findById( req.query.id )
             .then( patron => patron.dataValues ),
@@ -117,58 +136,92 @@ router.get('/patron_detail', (req, res) => {
             .then( getDataValues )
     ])
     .then( infos => {
-        patronDetails.patron = infos[0];
+        patronDetails = infos[0];
         patronDetails.loans = infos[1];
         return Promise.all( infos[1].map( loan => queryBookTitle( loan.book_id ) ) )
     })
     .then( books => 
         patronDetails.loans.forEach( (loan, i) => {
             patronDetails.loans[i].book_title = books[i];
-            patronDetails.loans[i].patron_fullname = patronDetails.patron.first_name + ' ' + patronDetails.patron.last_name;
+            patronDetails.loans[i].patron_fullname = patronDetails.first_name + ' ' + patronDetails.last_name;
         })
     )
     .then( () => res.render('patron_detail.pug', patronDetails ) );
 });
 
-// ---------------------------------------------------------------------------- FILTER
+// ---------------------------------------------------------------------------- FILTERS
 
 router.get('/overdue_books', (req, res) => {
-    Book.findAll({
+    Loan.findAll({
         where: {
-            // return_by: {
-
-            // }
+            [Op.and]: [
+                {
+                    return_by: {
+                        [Op.lt]: new Date()
+                    }
+                },{
+                    returned_on: {
+                        [Op.is]: null
+                    }
+                }
+            ]
         }
     })
         .then( getDataValues )
+        .then( loans =>  
+            Promise.all(
+                loans.map( loan => 
+                    Book.findById(loan.book_id)
+                )
+            )
+        )
         .then( books => res.render('overdue_books.pug', { books }) )
 });
 
 router.get('/checked_books', (req, res) => {
-    Book.findAll({
+    Loan.findAll({
         where: {
-            // returned_on: {
-                
-            // }
+            returned_on: {
+                [Op.is]: null
+            }
         }
     })
         .then( getDataValues )
+        .then( loans =>  
+            Promise.all(
+                loans.map( loan => 
+                    Book.findById(loan.book_id)
+                )
+            )
+        )
         .then( books => res.render('checked_books.pug', { books }) )
 });
 
 router.get('/overdue_loans', (req, res) => {
-    getAllLoans({
+    queryAllLoans({
         where: {
-
+            [Op.and]: [
+                {
+                    return_by: {
+                        [Op.lt]: new Date()
+                    }
+                },{
+                    returned_on: {
+                        [Op.is]: null
+                    }
+                }
+            ]
         }
     })
     .then( allLoans => res.render('overdue_loans.pug', allLoans ) )
 });
 
 router.get('/checked_loans', (req, res) => {
-    getAllLoans({
+    queryAllLoans({
         where: {
-
+            returned_on: {
+                [Op.is]: null
+            }
         }
     })
     .then( allLoans => res.render('checked_loans.pug', allLoans ) )
@@ -192,7 +245,11 @@ router.get('/new_loan', (req, res) => {
     .then( array => {
         return {
             books: array[0],
-            patrons: array[1]
+            patrons: array[1],
+            loan: {
+                loaned_on: moment().format('YYYY-MM-DD'),
+                return_by: moment().add(7, 'days').format('YYYY-MM-DD')
+            }
         }
     })
     .then( inf => res.render('new_loan.pug', inf) )
@@ -200,46 +257,186 @@ router.get('/new_loan', (req, res) => {
 
 // ---------------------------------------------------------------------------- POST NEW
 
-router.post('/new_book', (req, res) => {
+router.post('/new_book', (req, res, next) => {
+    console.log(req.body)
     Book.create(req.body)
-        .then( () => res.redirect('/all_books'))
-        .catch(err => console.log(err) )
+        .then( 
+            () => res.redirect('/all_books'),
+            err => {
+                // for every error path, make a property containing the appropriate error message
+                const errors = err.errors.reduce( (obj, error) => {
+                    obj['error_' + error.path] = errorMessages[error.path](error.value);
+                    return obj;
+                }, {});
+                // keep the fields from req.body which didn't cause an error
+                for (let prop in req.body) {
+                    if( !errors[prop]) {
+                        errors[prop] = req.body[prop];
+                    }
+                }
+                res.render('new_book.pug', errors );
+            });
 });
 
 router.post('/new_loan', (req, res) => {
     Loan.create(req.body)
-        .then( () => res.redirect('/all_loans'))
-        .catch( err => console.log(err) )
+        .then( 
+            () => res.redirect('/all_loans'),
+            err => {
+                // for every error path, make a property containing the appropriate error message
+                const errors = err.errors.reduce( (obj, error) => {
+                    obj['error_' + error.path] = errorMessages[error.path](error.value);
+                    return obj;
+                }, {});
+                // keep the fields from req.body which didn't cause an error
+                for (let prop in req.body) {
+                    if( !errors[prop]) {
+                        errors[prop] = req.body[prop];
+                    }
+                }
+                Promise.all([
+                    Book.findAll().then( getDataValues ),
+                    Patron.findAll().then( getDataValues )
+                ])
+                .then( array => {
+                    return {
+                        books: array[0],
+                        patrons: array[1],
+                        loan: {
+                            loaned_on: moment().format('YYYY-MM-DD'),
+                            return_by: moment().add(7, 'days').format('YYYY-MM-DD')
+                        }
+                    }
+                })
+                .then( inf => res.render('new_loan.pug', {...errors, ...inf}) )
+            }
+        )
 });
 
 router.post('/new_patron', (req, res) => {
     Patron.create(req.body)
-        .then( () => res.redirect('/all_patrons'))
-        .catch( err => console.log(err) )
+        .then( 
+            () => res.redirect('/all_patrons'),
+            err => {
+                console.log(err);
+                // for every error path, make a property containing the appropriate error message
+                const errors = err.errors.reduce( (obj, error) => {
+                    obj['error_' + error.path] = errorMessages[error.path](error.value);
+                    return obj;
+                }, {});
+                // keep the fields from req.body which didn't cause an error
+                for (let prop in req.body) {
+                    if( !errors[prop]) {
+                        errors[prop] = req.body[prop];
+                    }
+                }
+                res.render('new_patron.pug', errors );
+            }
+        )
 });
 
 // ---------------------------------------------------------------------------- Return Book
 
-router.get('/return_book', (req, res) => {
-    Loan.findById(res.query.id)
-        update({
-            returned_on: getDate()
+router.get('/return_book', (req,res) => {
+    console.log('return book n°' + req.query.id);
+    Loan.findById(req.query.id)
+        .then( loan => loan.dataValues )
+        .then( loan => {
+            return Promise.all([
+                Promise.resolve(loan),
+                queryBookTitle(loan.book_id),
+                queryPatronFullName(loan.patron_id),
+            ]);
         })
-        .then( res => res.redirect('/all_books.pug') );
+        .then( data => 
+            Object.assign({
+                ...data[0],
+                book_title: data[1],
+                patron_fullname: data[2],
+                returned_on: moment().format('YYYY-MM-DD')
+            })
+        )
+        .then( loan => res.render('return_book.pug', loan) )
+});
+
+router.post('/return_book', (req, res) => {
+    console.log(req.body);
+    Loan.findById(req.query.id)
+        .then( loan =>
+            loan.update({
+                returned_on: moment().format('YYYY-MM-DD')
+            })
+        )
+        .then( () => res.redirect('/all_loans') );
 })
 
 // ---------------------------------------------------------------------------- UPDATE
 
 router.post('/book_detail', (req, res) => {
-    console.log('UPDATE BOOK');
-    res.redirect('all_books');
+    Book.findById(req.query.id)
+        .then( book => book.update(req.body) )
+        .then( 
+            () => res.redirect('all_books'),
+            err => {
+                console.log(err);
+                // for every error path, make a property containing the appropriate error message
+                const errors = err.errors.reduce( (obj, error) => {
+                    obj['error_' + error.path] = errorMessages[error.path](error.value);
+                    return obj;
+                }, {});
+                // keep the fields from req.body which didn't cause an error
+                for (let prop in req.body) {
+                    if( !errors[prop]) {
+                        errors[prop] = req.body[prop];
+                    }
+                }
+                queryAllLoans({
+                    where: {
+                        book_id: req.query.id
+                    }
+                }) 
+                    .then( allLoans =>
+                        res.render('book_detail.pug', {
+                            ...errors, 
+                            ...allLoans
+                        })
+                    )
+            }
+        )
 })
 
 router.post('/patron_detail', (req, res) => {
-    console.log('UPDATE PATRON');
-    res.redirect('all_patrons');
+    console.log('patron update');
+    Patron.findById(req.query.id)
+        .then( patron => patron.update(req.body) )
+        .then( 
+            () => res.redirect('all_patrons'),
+            err => {
+                console.log(err);
+                // for every error path, make a property containing the appropriate error message
+                const errors = err.errors.reduce( (obj, error) => {
+                    obj['error_' + error.path] = errorMessages[error.path](error.value);
+                    return obj;
+                }, {});
+                // keep the fields from req.body which didn't cause an error
+                for (let prop in req.body) {
+                    if( !errors[prop]) {
+                        errors[prop] = req.body[prop];
+                    }
+                }
+                queryAllLoans({
+                    where: {
+                        patron_id: req.query.id
+                    }
+                }) 
+                    .then( allLoans =>
+                        res.render('patron_detail.pug', {
+                            ...errors, 
+                            ...allLoans
+                        })
+                    )
+            });
 })
-
 
 // ---------------------------------------------------------------------------- ERRORS
 router.use( (err, req, res, next) => {
@@ -247,7 +444,9 @@ router.use( (err, req, res, next) => {
     if (err.bug) {
         res.send('bad bad');
     } else {
-        res.render('error.pug', {title: 'Error', error: err.message});
+        console.log('\n\nerror' + err + '\n\n');
+        //res.render('error.pug', {title: 'Error', error: err.message});
+        res.redirect('/home');
     }
 });
 

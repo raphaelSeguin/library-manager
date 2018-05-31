@@ -31,11 +31,6 @@ app.use(routes);
 
 // 
 db.sequelize.sync()
-    .then( () => 
-        app.listen(3000,
-            () => console.log('listening to port 3000')
-        )
-    )
     .then(
         () => {
             return Promise.all(
@@ -46,4 +41,9 @@ db.sequelize.sync()
         }
     )
     .then( () => console.log('\n\nDB LOADED\n\n') )
+    .then( () => 
+        app.listen(3000,
+            () => console.log('listening to port 3000')
+        )
+    )
     .catch( err => console.log(err) )

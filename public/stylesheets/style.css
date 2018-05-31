@@ -25,6 +25,9 @@ form a.button, input[type=submit] {
 input[type=submit] {
   border: 0;
 }
+input[type=submit].search {
+  margin-left: 0px;
+}
   a.button:hover, input[type=submit]:hover {
     background-color: #01b189;
   }
@@ -91,4 +94,9 @@ input {
 }
 input[type=text], select {
   margin-left: 10px;
+}
+span.error {
+  margin-left: 14px;
+  font: 18px "Garamond", serif;
+  color: red;
 }

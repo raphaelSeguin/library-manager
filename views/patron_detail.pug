@@ -1,26 +1,38 @@
 extends layout.pug
 
 block content
-  h1 Patron: #{patron.first_name} #{patron.last_name}
+  h1 Patron: #{first_name} #{last_name}
   form(method='post')
     p
       label(for='first_name') First Name
-      input#first_name(type='text', value=patron.first_name)
+      input#first_name(type='text', name='first_name',  value=first_name)
+      span.error
+        | #{error_first_name}
     p
       label(for='last_name') Last Name
-      input#last_name(type='text', value=patron.last_name)
+      input#last_name(type='text', name='last_name', value=last_name)
+      span.error
+        | #{error_last_name}
     p
       label(for='address')  Address
-      input#address(type='text', value=patron.address)
+      input#address(type='text', name='address', value=address)
+      span.error
+        | #{error_address}
     p
       label(for='email') Email
-      input#email(type='text', value=patron.email)
+      input#email(type='text', name='email', value=email)
+      span.error
+        | #{error_email}
     p
       label(for='library_id') Library ID
-      input#library_id(type='text', value=patron.library_id)
+      input#library_id(type='text', name='library_id', value=library_id)
+      span.error
+        | #{error_library_id}
     p
       label(for='zip_code') Zip Code
-      input#zip_code(type='text', value=patron.zip_code)
+      input#zip_code(type='text', name='zip_code', value=zip_code)
+      span.error
+        | #{error_zip_code}
     p
       input(type='submit', value='Update')
   h2 Loan History

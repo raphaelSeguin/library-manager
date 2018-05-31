@@ -15,9 +15,13 @@ block content
                         option(value=patron.id) #{patron.first_name} #{patron.last_name}
             p
                 label(for='loaned_on') Loaned on:
-                input#loaned_on(type='text', value='Sun May 22 2016 17:00:00 GMT-0700 (PDT)', name='loaned_on')
+                input#loaned_on(type='text', value=loan.loaned_on, name='loaned_on')
+                span.error
+                    | #{error_loaned_on}
             p
                 label(for='return_by') Return by:
-                input#return_by(type='text', value='Sun May 29 2016 17:00:00 GMT-0700 (PDT)', name='return_by')
+                input#return_by(type='text', value=loan.return_by, name='return_by')
+                span.error
+                    | #{error_return_by}
             p
                 input(type='submit', value='Create New Loan')

@@ -1,0 +1,6 @@
+form(method='get')
+  p
+    input.search(type='submit', value='search')
+    input.search(type='text', name='search', value='')
+    span.error
+      | #{search_message}
