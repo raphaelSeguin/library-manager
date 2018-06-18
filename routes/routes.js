@@ -14,11 +14,13 @@ const Patron     = require('../models').Patron;
 // router
 const router     = express.Router();
 
+const pagination = 3;
+
 // utilities 
 const getDataValues = data => data.map( o => o.dataValues);
 
 // dev utils
-const monitor = label => val => {console.log(label + ': ', val); return val}
+const monitor = label => val => { console.log(label + ': ', val); return val };
 
 // querys
 const queryBookTitle = book_id => Book.findById(book_id).then( book => book.title);
@@ -63,6 +65,21 @@ const errorMessages = {
     return_by: cantBeEmpty('return date')
 }
 
+const bookSearch = (books, search) => {
+    return search 
+    ? books.filter( book => {
+        search = search.toLowerCase();
+        return book.title.toLowerCase().includes(search) 
+        || book.author.toLowerCase().includes(search)
+        || book.genre.toLowerCase().includes(search)
+        || book.first_published === parseInt(search)
+    })
+    : books
+    ;
+}
+    
+
+
 // body-parser
 router.use( bodyParser.urlencoded({ extended: true }) );
 
@@ -78,15 +95,42 @@ router.get('/home', (req, res) => {
 // ---------------------------------------------------------------------------- ALL
 
 router.get('/all_books', (req, res) => {
+
+    const search = req.query.search || '';
+    const page = parseInt(req.query.page) || 1;
+    let totalItems;
+
     Book.findAll()
         .then( getDataValues )
-        .then( books => res.render('all_books.pug', { books }) )
+        .then( books => bookSearch(books, req.query.search) )
+        .then( books => { totalItems = books.length; return books; })
+        .then( books => books.slice( (page - 1) * pagination, page * pagination) )
+        .then( books => res.render('all_books.pug', { books, search, totalItems, page, pagination }) )
 });
 
 router.get('/all_patrons', (req, res) => {
+
+    const search = req.query.search ? req.query.search.toString().toLowerCase() : '';
+    const page = parseInt(req.query.page) || 1;
+    let totalItems;
+    console.log(typeof page, page);
+
+
     Patron.findAll()
         .then( getDataValues )
-        .then( patrons => res.render('all_patrons.pug', { patrons } ) )
+        .then( patrons => 
+            patrons.filter( patron => {
+                return patron.first_name.toLowerCase().includes(search)
+                || patron.last_name.toLowerCase().includes(search)
+                || patron.email.toLowerCase().includes(search)
+                || patron.address.toLowerCase().includes(search)
+                || patron.library_id.toLowerCase().includes(search)
+                || patron.zip_code.toString().includes(search)
+            })
+        )
+        .then( patrons => { totalItems = patrons.length; return patrons; } )
+        .then( patrons => patrons.slice( (page - 1) * pagination, page * pagination) )
+        .then( patrons => res.render('all_patrons.pug', { patrons, search, totalItems, pagination, page } ) )
 });
 
 router.get('/all_loans', (req, res) => {
@@ -130,6 +174,7 @@ router.get('/patron_detail', (req, res) => {
     Promise.all([
         Patron.findById( req.query.id )
             .then( patron => patron.dataValues ),
+
         Loan.findAll({
              where: { patron_id: req.query.id } 
         })
@@ -152,6 +197,10 @@ router.get('/patron_detail', (req, res) => {
 // ---------------------------------------------------------------------------- FILTERS
 
 router.get('/overdue_books', (req, res) => {
+    const search = req.query.search || '';
+    const page = parseInt(req.query.page) || 1;
+    let totalItems;
+
     Loan.findAll({
         where: {
             [Op.and]: [
@@ -175,10 +224,17 @@ router.get('/overdue_books', (req, res) => {
                 )
             )
         )
-        .then( books => res.render('overdue_books.pug', { books }) )
+        .then( books => bookSearch(books, search)  )
+        .then( books => { totalItems = books.length; return books; })
+        .then( books => books.slice( (page - 1) * pagination, page * pagination) )
+        .then( books => res.render('overdue_books.pug', { books, search, totalItems, page, pagination }) )
 });
 
 router.get('/checked_books', (req, res) => {
+    const search = req.query.search || '';
+    const page = parseInt(req.query.page) || 1;
+    let totalItems;
+
     Loan.findAll({
         where: {
             returned_on: {
@@ -194,7 +250,10 @@ router.get('/checked_books', (req, res) => {
                 )
             )
         )
-        .then( books => res.render('checked_books.pug', { books }) )
+        .then( books => bookSearch(books, search)  )
+        .then( books => { totalItems = books.length; return books; })
+        .then( books => books.slice( (page - 1) * pagination, page * pagination) )
+        .then( books => res.render('checked_books.pug', { books, search, totalItems, page, pagination }) )
 });
 
 router.get('/overdue_loans', (req, res) => {

@@ -3,7 +3,9 @@ extends layout.pug
 block content
   h1 Patrons
   p
-  a.button(href='new_patron') Create New Patron
+    a.button(href='new_patron') Create New Patron
   p
-  include includes/patrons.pug
+    include includes/search.pug
+    include includes/patrons.pug
+    include includes/pagination.pug
         

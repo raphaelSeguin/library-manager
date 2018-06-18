@@ -7,6 +7,10 @@ a {
   text-decoration: none;
   font-weight: bold;
 }
+a.active {
+  color:  #0e2c25;
+}
+
   a:hover {
     color: black;
   }

@@ -1,6 +1,7 @@
 form(method='get')
   p
-    input.search(type='submit', value='search')
-    input.search(type='text', name='search', value='')
+    input.search(type='submit', value= search ? 'clear search' : 'search')
+    if !search
+      input.search(type='text', name='search', value='')
     span.error
       | #{search_message}

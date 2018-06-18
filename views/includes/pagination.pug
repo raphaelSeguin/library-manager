@@ -1,0 +1,19 @@
+if totalItems > pagination
+    nav
+        ul
+            if page > 1
+                li
+                    a.active(href=`?page=${ parseInt(page) - 1}&search=${search}`)  <
+            each val in [...Array(Math.ceil( totalItems / pagination )).keys()].map( x => x+1)
+                li
+                    if (val === page)
+                        a.active(href=`?page=${val}&search=${search}`) #{val}
+                    else 
+                        a(href=`?page=${val}&search=${search}`) #{val}
+
+            if page < Math.ceil( totalItems / pagination )
+                li
+                    a.active(href=`?page=${ parseInt(page) + 1}&search=${search}`)  >
+
+
+
