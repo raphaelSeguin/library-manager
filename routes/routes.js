@@ -135,7 +135,6 @@ router.get('/all_patrons', (req, res) => {
 
 router.get('/all_loans', (req, res) => {
         queryAllLoans()
-        .then( monitor('allLoans') )
         .then( allLoans => res.render('all_loans.pug', allLoans ) )
 });
 
